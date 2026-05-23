@@ -6,5 +6,5 @@ edition = "2024"
 [dependencies]
 chrono = "0.4.44"
 dotenv = "0.15.0"
-paho-mqtt = "0.13.3"
+paho-mqtt = "0.14.0"
 sqlite = "0.37.0"
