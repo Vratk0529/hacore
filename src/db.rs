@@ -1,4 +1,4 @@
-use crate::utils::types;
+use crate::types;
 use sqlite::Connection;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 

@@ -1,6 +1,6 @@
-use crate::utils::db;
-use crate::utils::mqtt;
-use crate::utils::types::Value;
+use crate::db;
+use crate::mqtt;
+use crate::types::Value;
 use std::sync::{Mutex, OnceLock};
 
 static DASHBOARD_HANDLER: OnceLock<Mutex<Option<fn(&str, &Value)>>> = OnceLock::new();
