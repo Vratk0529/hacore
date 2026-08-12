@@ -5,8 +5,7 @@ pub mod mqtt;
 pub mod types;
 
 pub fn init_all() {
-    use dotenv;
-    dotenv::dotenv().unwrap();
+    dotenv::dotenv().ok();
     db::init().unwrap();
     mqtt::init();
     dashboard::init();
