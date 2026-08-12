@@ -1,7 +1,8 @@
 pub mod db;
+pub mod dashboard;
+pub mod influx;
 pub mod mqtt;
 pub mod types;
-pub mod dashboard;
 
 pub fn init_all() {
     use dotenv;
@@ -9,5 +10,6 @@ pub fn init_all() {
     db::init().unwrap();
     mqtt::init();
     dashboard::init();
+    influx::init();
     println!("Connected: {}", mqtt::client().is_connected());
 }
