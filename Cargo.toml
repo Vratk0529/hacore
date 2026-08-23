@@ -1,11 +1,11 @@
 [package]
 name = "hacore"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 
 [dependencies]
 chrono = "0.4.44"
 dotenv = "0.15.0"
-paho-mqtt = "0.13.3"
+paho-mqtt = { version = "0.13.3", features = ["vendored-ssl"] }
 sqlite = "0.37.0"
 ureq = "2.10"
