@@ -56,18 +56,39 @@ pub fn init() {
     );
 }
 
-pub fn set(key: &str, val: Value) {
+fn publish_and_store(key: &str, val: Value, retain: bool) {
     // publish to RX (outgoing to dashboard)
     let topic = format!("dashboard/RX/{}", key);
 
-    mqtt::publish(
+    mqtt::publish_opts(
         &topic,
         val.to_string_value().as_str(),
         mqtt::QoS::AtLeastOnce,
+        retain,
     );
 
     // store internally (without prefix)
     db::store_variable(key, val).ok();
+}
+
+pub fn set(key: &str, val: Value) {
+    publish_and_store(key, val, false);
+}
+
+/// Same as [`set`], but asks the broker to retain the value.
+///
+/// Home Assistant's MQTT entities have no state until their `state_topic`
+/// produces one, so with unretained publishes every HA restart leaves the
+/// dashboard showing "unknown" until this controller happens to publish
+/// again. Retaining the state topic fixes that -- HA gets the last value
+/// the moment it subscribes.
+///
+/// Only worth using for values that are genuinely state. Pair it with
+/// change-detection on the caller's side: a retained publish costs the
+/// broker a disk write, so republishing an unchanged value at telemetry
+/// rate is a good way to wear out an SD card.
+pub fn set_retained(key: &str, val: Value) {
+    publish_and_store(key, val, true);
 }
 
 pub fn get(key: &str) -> Option<Value> {

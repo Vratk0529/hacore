@@ -242,6 +242,42 @@ pub fn attach_variable(topic: &str, qos: QoS, var: Arc<Mutex<String>>) {
     client().subscribe(topic, qos).wait().unwrap();
 }
 
+/// Publish a message, letting the caller decide whether the broker should
+/// retain it.
+///
+/// A retained message is handed to every client that subscribes to the
+/// topic *later*, so it acts as "last known value" storage inside the
+/// broker. That is what you want for anything that represents state rather
+/// than an event: relay commands, HA entity state topics, setpoints. A
+/// device that reboots (or, as happens on a flaky network, merely
+/// reconnects) then re-learns what it was told instead of coming up in
+/// whatever its firmware defaults to.
+///
+/// Fire-and-forget events -- "button pressed", a telemetry sample -- should
+/// stay unretained, otherwise a fresh subscriber replays stale history as
+/// if it were new.
+pub fn publish_opts(topic: &str, payload: &str, qos: QoS, retain: bool) -> DeliveryToken {
+    let msg = if retain {
+        paho_mqtt::Message::new_retained(topic, payload, qos)
+    } else {
+        paho_mqtt::Message::new(topic, payload, qos)
+    };
+    client().publish(msg)
+}
+
+/// Publish without the retain flag. Unchanged behaviour -- kept as the
+/// default so existing callers keep working.
 pub fn publish(topic: &str, payload: &str, qos: QoS) -> DeliveryToken {
-    return client().publish(paho_mqtt::Message::new(topic, payload, qos));
+    publish_opts(topic, payload, qos, false)
+}
+
+/// Publish with the retain flag set. See [`publish_opts`].
+pub fn publish_retained(topic: &str, payload: &str, qos: QoS) -> DeliveryToken {
+    publish_opts(topic, payload, qos, true)
+}
+
+/// Clear a retained message on `topic`, by publishing an empty retained
+/// payload (which is how MQTT spells "forget this topic").
+pub fn clear_retained(topic: &str, qos: QoS) -> DeliveryToken {
+    publish_opts(topic, "", qos, true)
 }
