@@ -38,6 +38,17 @@ pub fn init() -> Result<(), types::DbError> {
 
     return Ok(());
 }
+/// SQLite string-literal escaping: double any single quote.
+///
+/// These statements are built by formatting rather than binding, and the
+/// keys come straight off MQTT topics while the values can be arbitrary
+/// free text. Before this, a value containing an apostrophe produced a
+/// syntax error that `store_variable`'s callers almost all discard with
+/// `.ok()`, so the write just silently vanished.
+fn escape(s: &str) -> String {
+    s.replace('\'', "''")
+}
+
 pub fn store_variable(key: &str, val: types::Value) -> Result<(), types::DbError> {
     {
         let mut cache = cache();
@@ -49,25 +60,28 @@ pub fn store_variable(key: &str, val: types::Value) -> Result<(), types::DbError
         types::Value::Text(v) => {
             db.execute(format!(
                 "INSERT OR REPLACE INTO variables (key,value,type) VALUES ('{}','{}','string')",
-                key, v
+                escape(key),
+                escape(&v)
             ))?;
         }
         types::Value::Int(v) => {
             db.execute(format!(
                 "INSERT OR REPLACE INTO variables (key,value,type) VALUES ('{}','{}','int')",
-                key, v
+                escape(key),
+                v
             ))?;
         }
         types::Value::Float(v) => {
             db.execute(format!(
                 "INSERT OR REPLACE INTO variables (key,value,type) VALUES ('{}','{}','float')",
-                key, v
+                escape(key),
+                v
             ))?;
         }
         types::Value::Bool(v) => {
             db.execute(format!(
                 "INSERT OR REPLACE INTO variables (key,value,type) VALUES ('{}','{}','bool')",
-                key,
+                escape(key),
                 if v { 1 } else { 0 }
             ))?;
         }
@@ -91,7 +105,7 @@ pub fn read_variable(key: &str) -> Result<types::Value, types::DbError> {
     db.iterate(
         format!(
             "SELECT value,type FROM variables WHERE key='{}' LIMIT 1",
-            key
+            escape(key)
         ),
         |row| {
             let mut tp = "";

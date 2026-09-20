@@ -41,6 +41,19 @@ pub fn init() {
     let _ = RATE_LIMIT.set(Mutex::new(HashMap::new()));
 }
 
+/// A shared agent, so connections are pooled and -- the point of it --
+/// bounded.
+fn agent() -> &'static ureq::Agent {
+    static AGENT: OnceLock<ureq::Agent> = OnceLock::new();
+    AGENT.get_or_init(|| {
+        ureq::AgentBuilder::new()
+            .timeout_connect(Duration::from_secs(2))
+            .timeout_read(Duration::from_secs(4))
+            .timeout_write(Duration::from_secs(4))
+            .build()
+    })
+}
+
 fn config() -> &'static Config {
     CONFIG.get().expect("influx::init() was not called (did you call hacore::init_all()?)")
 }
@@ -162,7 +175,13 @@ pub fn write(point: Point) {
     let endpoint = format!("{}/write?db={}", cfg.url, cfg.database);
     let line = point.to_line();
 
-    let req = ureq::post(&endpoint);
+    // Bounded, because this call is synchronous and controllers call it
+    // from inside their control loop. Without a timeout an InfluxDB that
+    // accepts the connection and then stops answering blocks that loop
+    // indefinitely -- which is a strictly worse failure than losing a
+    // metric, and the exact opposite of the "can never take a controller
+    // down" promise at the top of this file.
+    let req = agent().post(&endpoint);
     let req = match (&cfg.username, &cfg.password) {
         (Some(u), Some(p)) => req.set("Authorization", &format!("Basic {}", base64_encode(&format!("{}:{}", u, p)))),
         _ => req,
